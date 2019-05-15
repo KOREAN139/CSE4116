@@ -26,6 +26,29 @@ static unsigned char *lcd_addr;
 
 static struct timer_list huins_timer;
 
+static void huins_run(unsigned long param)
+{
+       int op = *(int *)param;
+       int pos = POSITION(op);
+       int val = VALUE(op);
+       int gap = INTERVAL(op);
+       int lap = LAPS(op);
+
+       if (!lap)
+               return;
+       lap -= 1;
+
+       // do control huins board here
+
+       op = CONSTRUCT_PARAM(pos, val, gap, lap);
+
+       huins_timer.function = huins_run;
+       huins_timer.data = (unsigned long)&op;
+       huins_timer.expires = get_jiffies_64() + (UNIT_TIME * gap);
+
+       add_timer(&huins_timer);
+}
+
 static int huins_open(struct inode *inode,
                 struct file *file)
 {
@@ -68,29 +91,6 @@ static int huins_ioctl(struct inode *inode,
                 huins_write(file, (char *)ioctl_param, 4, 0);
                 break;
         }
-}
-
-static void huins_run(unsigned long param)
-{
-       int op = *(int *)param;
-       int pos = POSITION(op);
-       int val = VALUE(op);
-       int gap = INTERVAL(op);
-       int lap = LAPS(op);
-
-       if (!lap)
-               return;
-       lap -= 1;
-
-       // do control huins board here
-
-       op = CONSTRUCT_PARAM(pos, val, gap, lap);
-
-       huins_timer.function = huins_run;
-       huins_timer.data = (unsigned long)&op;
-       huins_timer.expires = get_jiffies_64() + (UNIT_TIME * gap);
-
-       add_timer(&huins_timer);
 }
 
 struct file_operations fops = {
