@@ -13,7 +13,6 @@
 
 static int device_open = 0;
 static int cnt;
-static char fnd_array[4];
 static const char *student_num = "20151623";
 static const int num_len = 8;
 static const char *student_name = "Sanggu Han";
@@ -25,6 +24,40 @@ static unsigned char *led_addr;
 static unsigned char *lcd_addr;
 
 static struct timer_list huins_timer;
+
+static void huins_control_device(int pos, int val)
+{
+        int i, indent;
+        unsigned short int dot_val;
+        unsigned short int fnd_val = val << (pos * 4);
+        unsigned short led_val = 1 << (8 - val);
+        unsigned short int lcd_val;
+
+        for (i = 0; i < 10; i++) {
+                dot_val = dot_number[val - 1] & 0x7f;
+                outw(dot_val, (unsigned int)dot_addr + i * 2);
+        }
+
+        outw(fnd_val, (unsigned int)fnd_addr);
+
+        outw(led_val, (unsigned int)led_addr);
+
+        // TODO: calculate indent
+        indent = 0;
+        for (i = 0; i < num_len; i += 2) {
+                lcd_val = ((student_num[i] & 0xFF) << 8)
+                        | (student_num[i + 1] & 0xFF);
+                outw(lcd_val, (unsigned int)lcd_addr + indent + i);
+        }
+
+        // TODO: calculate indent
+        indent = 0;
+        for (i = 0; i < name_len; i += 2) {
+                lcd_val = ((student_name[i] & 0xFF) << 8)
+                        | (student_name[i + 1] & 0xFF);
+                outw(lcd_val, (unsigned int)lcd_addr + 16 + indent + i);
+        }
+}
 
 static void huins_run(unsigned long param)
 {
@@ -38,9 +71,15 @@ static void huins_run(unsigned long param)
                return;
        lap -= 1;
 
-       // do control huins board here
+       huins_control_device(pos, val);
+
+       if (cnt && !(cnt % 8))
+               pos = (pos - 1 + 4) % 4;
+       val = val - 8 ? val + 1 : 1;
 
        op = CONSTRUCT_PARAM(pos, val, gap, lap);
+
+       cnt += 1;
 
        huins_timer.function = huins_run;
        huins_timer.data = (unsigned long)&op;
@@ -58,7 +97,6 @@ static int huins_open(struct inode *inode,
         device_open++;
 
         cnt = 0;
-        memset(fnd_array, 0, sizeof(fnd_array));
         
         try_module_get(THIS_MODULE);
         return SUCCESS;
