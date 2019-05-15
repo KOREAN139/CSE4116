@@ -2,12 +2,12 @@
  * Copyright (c) 2019 Sanggu Han
  */
 
-#include<linux/kernel.h>
-#include<linux/moudle.h>
-#include<linux/string.h>
-#include<linux/fs.h>
-#include<asm/io.h>
-#include<huins.h>
+#include <linux/kernel.h>
+#include <linux/moudle.h>
+#include <linux/string.h>
+#include <linux/fs.h>
+#include <asm/io.h>
+#include "huins.h"
 
 static int device_open = 0;
 static char fnd_array[4];
@@ -35,6 +35,13 @@ static int huins_open(struct inode *inode,
         return SUCCESS;
 }
 
+static ssize_t huins_write(struct file *file,
+                const char __user *buffer, size_t length, loff_t *offset)
+{
+        int param = (int)buffer;
+        huins_run(param);
+}
+
 static int huins_release(struct inode *inode,
                 struct file *file)
 {
@@ -49,9 +56,26 @@ static int huins_ioctl(struct inode *inode,
                 unsigned int ioctl_num,
                 unsigned long ioctl_param)
 {
+        switch (ioctl_num) {
+        case IOCTL_RUN_DEVICE:
+                huins_write(file, (char *)ioctl_param, 4, 0);
+                break;
+        }
+}
+
+static void huins_run(unsigned long param)
+{
+       int op = (int)param;
+       int pos = POSITION(op);
+       int val = VALUE(op);
+       int gap = INTERVAL(op);
+       int lap = LAPS(op);
+
+       op = CONSTRUCT_PARAM(pos, val, gap, lap);
 }
 
 struct file_operations fops = {
+        .write = huins_write,
         .ioctl = huins_ioctl,
         .open = huins_open,
         .release = huins_release,
