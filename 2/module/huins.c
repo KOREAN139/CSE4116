@@ -27,8 +27,6 @@ static unsigned char *lcd_addr;
 
 static struct timer_list huins_timer;
 
-struct st_huins_timer huins_timer;
-
 static int huins_open(struct inode *inode,
                 struct file *file)
 {
