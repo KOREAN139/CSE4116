@@ -6,6 +6,9 @@
 
 #define DEVICE_NAME "dev_driver"
 #define MAJOR_NUM 242
+
+#define SUCCESS 0
+
 #define FND_ADDRESS 0x08000004
 #define LED_ADDRESS 0x08000016
 #define LCD_ADDRESS 0x08000090

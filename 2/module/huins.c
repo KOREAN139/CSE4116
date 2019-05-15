@@ -4,9 +4,17 @@
 
 #include<linux/kernel.h>
 #include<linux/moudle.h>
+#include<linux/string.h>
 #include<linux/fs.h>
 #include<asm/io.h>
 #include<huins.h>
+
+static int device_open = 0;
+static char fnd_array[4];
+static char student_num = "20151623";
+static int num_len = 8;
+static char student_name = "Sanggu Han";
+static int name_len = 10;
 
 static unsigned char *dot_addr;
 static unsigned char *fnd_addr;
@@ -16,11 +24,24 @@ static unsigned char *lcd_addr;
 static int huins_open(struct inode *inode,
                 struct file *file)
 {
+        if (device_open)
+                return -EBUSY;
+
+        device_open++;
+
+        memset(fnd_array, 0, sizeof(fnd_array));
+        
+        try_module_get(THIS_MODULE);
+        return SUCCESS;
 }
 
 static int huins_release(struct inode *inode,
                 struct file *file)
 {
+        device_open--;
+
+        module_put(THIS_MODULE);
+        return SUCCESS;
 }
 
 static int huins_ioctl(struct inode *inode,
