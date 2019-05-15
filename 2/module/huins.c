@@ -5,9 +5,12 @@
 #include <linux/kernel.h>
 #include <linux/moudle.h>
 #include <linux/string.h>
+#include <linux/timer.h>
 #include <linux/fs.h>
 #include <asm/io.h>
 #include "huins.h"
+
+#define UNIT_TIME (HZ / 10)
 
 static int device_open = 0;
 static char fnd_array[4];
@@ -20,6 +23,10 @@ static unsigned char *dot_addr;
 static unsigned char *fnd_addr;
 static unsigned char *led_addr;
 static unsigned char *lcd_addr;
+
+static struct timer_list huins_timer;
+
+struct st_huins_timer huins_timer;
 
 static int huins_open(struct inode *inode,
                 struct file *file)
@@ -39,7 +46,8 @@ static ssize_t huins_write(struct file *file,
                 const char __user *buffer, size_t length, loff_t *offset)
 {
         int param = (int)buffer;
-        huins_run(param);
+        huins_run((unsigned long)param);
+        return SUCCESS;
 }
 
 static int huins_release(struct inode *inode,
@@ -65,13 +73,25 @@ static int huins_ioctl(struct inode *inode,
 
 static void huins_run(unsigned long param)
 {
-       int op = (int)param;
+       int op = *(int *)param;
        int pos = POSITION(op);
        int val = VALUE(op);
        int gap = INTERVAL(op);
        int lap = LAPS(op);
 
+       if (!lap)
+               return;
+       lap -= 1;
+
+       // do control huins board here
+
        op = CONSTRUCT_PARAM(pos, val, gap, lap);
+
+       huins_timer.function = huins_run;
+       huins_timer.data = (unsigned long)&op;
+       huins_timer.expires = get_jiffies_64() + (UNIT_TIME * gap);
+
+       add_timer(&huins_timer);
 }
 
 struct file_operations fops = {
@@ -95,6 +115,7 @@ static int init_module()
 	led_addr = ioremap(LED_ADDRESS, 0x1);
 	lcd_addr = ioremap(LCD_ADDRESS, 0x32);
 	dot_addr = ioremap(DOT_ADDRESS, 0x10);
+        init_timer(&huins_timer);
         return 0;
 }
 
@@ -105,6 +126,7 @@ void cleanup_module()
 	iounmap(led_addr);
 	iounmap(lcd_addr);
 	iounmap(dot_addr);
+        del_timer_sync(&huins_timer);
         ret = unregister_chrdev(MAJOR_NUM, DEVICE_NAME);
         if (ret < 0)
                 printk(KERN_ALERT "Error: unregister_chrdev: %d\n", ret);
