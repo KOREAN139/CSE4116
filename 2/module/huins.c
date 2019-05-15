@@ -13,11 +13,12 @@
 #define UNIT_TIME (HZ / 10)
 
 static int device_open = 0;
+static int cnt;
 static char fnd_array[4];
-static char student_num = "20151623";
-static int num_len = 8;
-static char student_name = "Sanggu Han";
-static int name_len = 10;
+static const char *student_num = "20151623";
+static const int num_len = 8;
+static const char *student_name = "Sanggu Han";
+static const int name_len = 10;
 
 static unsigned char *dot_addr;
 static unsigned char *fnd_addr;
@@ -36,6 +37,7 @@ static int huins_open(struct inode *inode,
 
         device_open++;
 
+        cnt = 0;
         memset(fnd_array, 0, sizeof(fnd_array));
         
         try_module_get(THIS_MODULE);
