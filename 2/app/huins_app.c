@@ -1,3 +1,6 @@
+/*
+ * Copyright (c) 2019 Sanggu Han
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>

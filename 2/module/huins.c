@@ -1,7 +1,6 @@
 /*
  * Copyright (c) 2019 Sanggu Han
  */
-
 #include <linux/kernel.h>
 #include <linux/moudle.h>
 #include <linux/string.h>
