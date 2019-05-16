@@ -40,6 +40,8 @@ static void huins_control_device(int pos, int val, int cnt)
         unsigned short led_val = 1 << (8 - val);
         unsigned short int lcd_val;
 
+	char line_buf[16];
+
         for (i = 0; i < 10; i++) {
                 dot_val = dot_number[val - 1][i] & 0x7f;
                 outw(dot_val, (unsigned int)dot_addr + i * 2);
@@ -49,30 +51,33 @@ static void huins_control_device(int pos, int val, int cnt)
 
         outw(led_val, (unsigned int)led_addr);
 
+	memset(line_buf, ' ', 16);
         indent = 8 - ABS((8 - cnt % 16));
-        for (i = 0; i < num_len; i += 2) {
-                lcd_val = ((student_num[i] & 0xFF) << 8)
-                        | (student_num[i + 1] & 0xFF);
-                outw(lcd_val, (unsigned int)lcd_addr + indent + i);
-        }
+	memcpy(line_buf + indent, student_num, num_len);
+        for (i = 0; i < 16; i += 2) {
+		lcd_val = (line_buf[i] << 8) | line_buf[i + 1];
+                outw(lcd_val, (unsigned int)lcd_addr + i);
+	}
 
+	memset(line_buf, ' ', 16);
         indent = 6 - ABS((6 - cnt % 12));
-        for (i = 0; i < name_len; i += 2) {
-                lcd_val = ((student_name[i] & 0xFF) << 8)
-                        | (student_name[i + 1] & 0xFF);
-                outw(lcd_val, (unsigned int)lcd_addr + 16 + indent + i);
+	memcpy(line_buf + indent, student_name, name_len);
+        for (i = 0; i < 16; i += 2) {
+		lcd_val = (line_buf[i] << 8) | line_buf[i + 1];
+                outw(lcd_val, (unsigned int)lcd_addr + i + 16);
         }
 }
 
 static void huins_clear_device(void)
 {
 	int i;
+	unsigned short space = (' ' << 8) | ' ';
         for (i = 0; i < 10; i++)
                 outw(0, (unsigned int)dot_addr + i * 2);
         outw(0, (unsigned int)fnd_addr);
         outw(0, (unsigned int)led_addr);
-        for (i = 0; i < 32; i++)
-                outw(' ', (unsigned int)lcd_addr + i);
+        for (i = 0; i < 32; i += 2)
+                outw(space, (unsigned int)lcd_addr + i);
 }
 
 static void huins_run(unsigned long param)
