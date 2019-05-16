@@ -60,7 +60,7 @@ static void huins_control_device(int pos, int val)
         }
 }
 
-static void huins_clear_device()
+static void huins_clear_device(void)
 {
 	int i;
         for (i = 0; i < 10; i++)
@@ -112,6 +112,7 @@ static int huins_open(struct inode *inode,
 
         cnt = 0;
         timer_op = 0;
+        huins_clear_device();
         
         try_module_get(THIS_MODULE);
         return SUCCESS;
@@ -126,8 +127,7 @@ static int huins_release(struct inode *inode,
         return SUCCESS;
 }
 
-static int huins_ioctl(struct inode *inode,
-                struct file *file,
+static long huins_ioctl(struct file *file,
                 unsigned int ioctl_num,
                 unsigned long ioctl_param)
 {

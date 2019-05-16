@@ -4,7 +4,7 @@
 #ifndef _HUINS_APP_H_
 #define _HUINS_APP_H_
 
-#include <linux/ioctl.h>
+#include <sys/ioctl.h>
 
 #define DEVICE_NAME     "/dev/dev_driver"
 #define MAJOR_NUM       242

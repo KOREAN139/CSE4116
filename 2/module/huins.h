@@ -6,7 +6,7 @@
 
 #include <linux/ioctl.h>
 
-#define DEVICE_NAME     "dev_driver"
+#define DEVICE_NAME     "/dev/dev_driver"
 #define MAJOR_NUM       242
 
 #define SUCCESS 0

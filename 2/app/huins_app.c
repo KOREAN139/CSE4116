@@ -25,20 +25,20 @@ int main(int argc, char **argv) {
         input.lap = atoi(argv[2]);
         input.op = atoi(argv[3]);
 
-        param = syscall(__NR_huinsw, &input);
+        param = syscall(376, &input);
         if (param < 0) {
                 puts("Invalid input has given");
                 puts("Interval [1, 100] Lap [1, 100] Option [0001, 8000]\n");
                 return -1;
         }
-        
+
         fd = open(DEVICE_NAME, 0);
         if (fd < 0) {
                 printf("Can't open device file: %s\n", DEVICE_NAME);
                 return -1;
         }
         
-        ret = ioctl(fd, IOCTL_RUN_DEVICE, param);
+        ret = ioctl(fd, IOCTL_RUN_DEVICE, &param);
         if (ret < 0) {
                 printf("IOCTL_RUN_DEVICE failed:%d\n", ret);
                 return -1;
