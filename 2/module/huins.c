@@ -139,6 +139,8 @@ static int huins_ioctl(struct inode *inode,
                 huins_write(file, (char *)ioctl_param, 4, 0);
                 break;
         }
+
+        return SUCCESS;
 }
 
 struct file_operations fops = {
