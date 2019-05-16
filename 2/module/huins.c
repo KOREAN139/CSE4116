@@ -2,10 +2,12 @@
  * Copyright (c) 2019 Sanggu Han
  */
 #include <linux/kernel.h>
-#include <linux/moudle.h>
+#include <linux/module.h>
 #include <linux/string.h>
+#include <linux/device.h>
 #include <linux/timer.h>
 #include <linux/fs.h>
+#include <asm/uaccess.h>
 #include <asm/io.h>
 #include "huins.h"
 
@@ -13,9 +15,9 @@
 
 static int device_open = 0;
 static int cnt;
-static const char *student_num = "20151623";
+const char *student_num = "20151623";
 static const int num_len = 8;
-static const char *student_name = "Sanggu Han";
+const char *student_name = "Sanggu Han";
 static const int name_len = 10;
 
 static unsigned char *dot_addr;
@@ -35,7 +37,7 @@ static void huins_control_device(int pos, int val)
         unsigned short int lcd_val;
 
         for (i = 0; i < 10; i++) {
-                dot_val = dot_number[val - 1] & 0x7f;
+                dot_val = dot_number[val - 1][i] & 0x7f;
                 outw(dot_val, (unsigned int)dot_addr + i * 2);
         }
 
@@ -60,6 +62,7 @@ static void huins_control_device(int pos, int val)
 
 static void huins_clear_device()
 {
+	int i;
         for (i = 0; i < 10; i++)
                 outw(0, (unsigned int)dot_addr + i * 2);
         outw(0, (unsigned int)fnd_addr);
@@ -131,8 +134,8 @@ static int huins_ioctl(struct inode *inode,
         switch (ioctl_num) {
         case IOCTL_RUN_DEVICE:
                 copy_from_user(&timer_op,
-                                (void __user *)ioctl_param, sizeof(param));
-                huins_run((unsigned long)&param);
+                                (void __user *)ioctl_param, sizeof(timer_op));
+                huins_run((unsigned long)&timer_op);
                 break;
         }
 
@@ -140,19 +143,19 @@ static int huins_ioctl(struct inode *inode,
 }
 
 struct file_operations fops = {
-        .ioctl = huins_ioctl,
+        .unlocked_ioctl = huins_ioctl,
         .open = huins_open,
         .release = huins_release,
 };
 
-static int init_module()
+int init_module()
 {
         int ret;
-        ret = register_chardev(MAJOR_NUM, DEVICE_NAME, &fops);
+        ret = register_chrdev(MAJOR_NUM, DEVICE_NAME, &fops);
         if (ret < 0) {
                 printk(KERN_ALERT "%s failed with %d\n",
                                 "Sorry, registering the character device ",
-                                ret_val);
+                                ret);
                 return ret;
         }
 	fnd_addr = ioremap(FND_ADDRESS, 0x4);
@@ -165,15 +168,12 @@ static int init_module()
 
 void cleanup_module()
 {
-        int ret;
 	iounmap(fnd_addr);
 	iounmap(led_addr);
 	iounmap(lcd_addr);
 	iounmap(dot_addr);
         del_timer_sync(&huins_timer);
-        ret = unregister_chrdev(MAJOR_NUM, DEVICE_NAME);
-        if (ret < 0)
-                printk(KERN_ALERT "Error: unregister_chrdev: %d\n", ret);
+        unregister_chrdev(MAJOR_NUM, DEVICE_NAME);
 }
 
 MODULE_LICENSE("GPL");
