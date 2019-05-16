@@ -42,16 +42,14 @@ static void huins_control_device(int pos, int val)
 
         outw(led_val, (unsigned int)led_addr);
 
-        // TODO: calculate indent
-        indent = 0;
+        indent = 8 - ABS((8 - cnt%16));
         for (i = 0; i < num_len; i += 2) {
                 lcd_val = ((student_num[i] & 0xFF) << 8)
                         | (student_num[i + 1] & 0xFF);
                 outw(lcd_val, (unsigned int)lcd_addr + indent + i);
         }
 
-        // TODO: calculate indent
-        indent = 0;
+        indent = 6 - ABS((6 - cnt%12));
         for (i = 0; i < name_len; i += 2) {
                 lcd_val = ((student_name[i] & 0xFF) << 8)
                         | (student_name[i + 1] & 0xFF);
