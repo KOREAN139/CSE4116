@@ -24,6 +24,7 @@ static unsigned char *led_addr;
 static unsigned char *lcd_addr;
 
 static struct timer_list huins_timer;
+static int timer_op;
 
 static void huins_control_device(int pos, int val)
 {
@@ -107,6 +108,7 @@ static int huins_open(struct inode *inode,
         device_open++;
 
         cnt = 0;
+        timer_op = 0;
         
         try_module_get(THIS_MODULE);
         return SUCCESS;
@@ -126,12 +128,11 @@ static int huins_ioctl(struct inode *inode,
                 unsigned int ioctl_num,
                 unsigned long ioctl_param)
 {
-        unsigned long param;
         switch (ioctl_num) {
         case IOCTL_RUN_DEVICE:
-                param = copy_from_user(&param,
+                timer_op = copy_from_user(&param,
                                 (void __user *)ioctl_param, sizeof(param));
-                huins_run(param);
+                huins_run((unsigned long)&param);
                 break;
         }
 
