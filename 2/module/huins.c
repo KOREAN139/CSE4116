@@ -93,7 +93,7 @@ static void huins_run(unsigned long param)
 
        huins_control_device(pos, val, cnt);
 
-       if (cnt && !(cnt % 8))
+       if (cnt % 8 == 7)
                pos = (pos - 1 + 4) % 4;
        val = val - 8 ? val + 1 : 1;
 
