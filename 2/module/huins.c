@@ -112,14 +112,6 @@ static int huins_open(struct inode *inode,
         return SUCCESS;
 }
 
-static ssize_t huins_write(struct file *file,
-                const char __user *buffer, size_t length, loff_t *offset)
-{
-        int param = (int)buffer;
-        huins_run((unsigned long)param);
-        return SUCCESS;
-}
-
 static int huins_release(struct inode *inode,
                 struct file *file)
 {
@@ -134,9 +126,12 @@ static int huins_ioctl(struct inode *inode,
                 unsigned int ioctl_num,
                 unsigned long ioctl_param)
 {
+        unsigned long param;
         switch (ioctl_num) {
         case IOCTL_RUN_DEVICE:
-                huins_write(file, (char *)ioctl_param, 4, 0);
+                param = copy_from_user(&param,
+                                (void __user *)ioctl_param, sizeof(param);
+                huins_run(param);
                 break;
         }
 
@@ -144,7 +139,6 @@ static int huins_ioctl(struct inode *inode,
 }
 
 struct file_operations fops = {
-        .write = huins_write,
         .ioctl = huins_ioctl,
         .open = huins_open,
         .release = huins_release,
