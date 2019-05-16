@@ -130,7 +130,7 @@ static int huins_ioctl(struct inode *inode,
         switch (ioctl_num) {
         case IOCTL_RUN_DEVICE:
                 param = copy_from_user(&param,
-                                (void __user *)ioctl_param, sizeof(param);
+                                (void __user *)ioctl_param, sizeof(param));
                 huins_run(param);
                 break;
         }
