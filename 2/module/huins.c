@@ -59,6 +59,16 @@ static void huins_control_device(int pos, int val)
         }
 }
 
+static void huins_clear_device()
+{
+        for (i = 0; i < 10; i++)
+                outw(0, (unsigned int)dot_addr + i * 2);
+        outw(0, (unsigned int)fnd_addr);
+        outw(0, (unsigned int)led_addr);
+        for (i = 0; i < 32; i += 2)
+                outw(0, (unsigned int)lcd_addr + i);
+}
+
 static void huins_run(unsigned long param)
 {
        int op = *(int *)param;
@@ -67,8 +77,10 @@ static void huins_run(unsigned long param)
        int gap = INTERVAL(op);
        int lap = LAPS(op);
 
-       if (!lap)
+       if (!lap) {
+               huins_clear_device();
                return;
+       }
        lap -= 1;
 
        huins_control_device(pos, val);
