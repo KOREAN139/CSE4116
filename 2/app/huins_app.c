@@ -6,7 +6,7 @@
 #include <unistd.h>
 #include <syscall.h>
 #include <sys/ioctl.h>
-#include "huins.h"
+#include "huins_app.h"
 
 struct st_huins_op {
         int interval, lap, op;
