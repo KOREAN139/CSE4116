@@ -87,6 +87,7 @@ irqreturn_t volume_up_handler(int irq, void *dev_id, struct ptr_regs *regs)
 {
         paused_at = 0;
         watch_timer.param = 0;
+        update_fnd(0);
         if (timer_pending(&watch_timer.timer)) {
                 mod_timer(&watch_timer.timer, get_jiffies_64() + HZ);
         }
