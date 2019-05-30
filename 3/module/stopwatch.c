@@ -7,6 +7,7 @@
 #include <linux/timer.h>
 #include <linux/fs.h>
 #include <linux/interrupt.h>
+#include <linux/wait.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -16,6 +17,7 @@
 static int device_open = 0;
 static unsigned long paused_at;
 static unsigned char *fnd_addr;
+DECLARE_WAIT_QUEUE_HEAD(wait_queue);
 
 static struct st_timer {
 	struct timer_list timer;
@@ -57,6 +59,11 @@ static void stopwatch_run(unsigned long param)
 static ssize_t stopwatch_write(struct file *file,
                 const char *buf, size_t len, loff_t *off)
 {
+        paused_at = 0;
+
+        interruptible_sleep_on(wait_queue);
+
+        return SUCCESS;
 }
 
 irqreturn_t home_handler(int irq, void *dev_id, struct ptr_regs *regs)
