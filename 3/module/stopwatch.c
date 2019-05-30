@@ -14,7 +14,7 @@
 #include "stopwatch.h"
 
 static int device_open = 0;
-
+static unsigned long paused_at;
 static unsigned char *fnd_addr;
 
 static struct st_timer {
@@ -61,16 +61,36 @@ static ssize_t stopwatch_write(struct file *file,
 
 irqreturn_t home_handler(int irq, void *dev_id, struct ptr_regs *regs)
 {
+        if (!timer_pending(&watch_timer.timer)) {
+                paused_at = 0;
+                watch_timer.param = 0;
+                stopwatch_run((unsigned long)&watch_timer);
+        }
+
         return IRQ_HANDLED;
 }
 
 irqreturn_t back_handler(int irq, void *dev_id, struct ptr_regs *regs)
 {
+        if (timer_pending(&watch_timer.timer)) {
+                paused_at = watch_timer.timer.expires - get_jiffies_64();
+                del_timer(&watch_timer.timer);
+        } else {
+                watch_timer.timer.expires = get_jiffies_64() + HZ - paused_at;
+                add_timer(&watch_timer.timer);
+        }
+
         return IRQ_HANDLED;
 }
 
-irqreturn_t volumn_up_handler(int irq, void *dev_id, struct ptr_regs *regs)
+irqreturn_t volume_up_handler(int irq, void *dev_id, struct ptr_regs *regs)
 {
+        paused_at = 0;
+        watch_timer.param = 0;
+        if (timer_pending(&watch_timer.timer)) {
+                mod_timer(&watch_timer.timer, get_jiffies_64() + HZ);
+        }
+
         return IRQ_HANDLED;
 }
 
@@ -93,28 +113,33 @@ static int stopwatch_open(struct inode *inode,
         /* change GPIO as input mode - home */
         gpio_direction_input(IMX_GPIO_NR(1, 11));
         irq = gpio_to_irq(IMX_GPIO_NR(1, 11));
-        ret = request_irq(irq, home_handler, irq_flag, "HOME_BTN", NULL);
+        ret = request_irq(irq, home_handler,
+                        irq_flag, "HOME_BTN", NULL);
         if (ret)
                 printk("ERROR: Cannot request IRQ %d\n - code %d\n", irq, ret);
 
         /* change GPIO as input mode - back */
         gpio_direction_input(IMX_GPIO_NR(1, 12));
         irq = gpio_to_irq(IMX_GPIO_NR(1, 12));
-        ret = request_irq(irq, home_handler, irq_flag, "BACK_BTN", NULL);
+        ret = request_irq(irq, back_handler,
+                        irq_flag, "BACK_BTN", NULL);
         if (ret)
                 printk("ERROR: Cannot request IRQ %d\n - code %d\n", irq, ret);
 
         /* change GPIO as input mode - volume up */
         gpio_direction_input(IMX_GPIO_NR(2, 15));
         irq = gpio_to_irq(IMX_GPIO_NR(2, 15));
-        ret = request_irq(irq, home_handler, irq_flag, "VOLUP_BTN", NULL);
+        ret = request_irq(irq, volume_up_handler,
+                        irq_flag, "VOLUP_BTN", NULL);
         if (ret)
                 printk("ERROR: Cannot request IRQ %d\n - code %d\n", irq, ret);
 
         /* change GPIO as input mode - volume down */
         gpio_direction_input(IMX_GPIO_NR(5, 14));
         irq = gpio_to_irq(IMX_GPIO_NR(5, 14));
-        ret = request_irq(irq, home_handler, irq_flag, "VOLDOWN_BTN", NULL);
+        irq_flag |= IRQF_TRIGGER_FALLING;
+        ret = request_irq(irq, volume_down_handler,
+                        irq_flag, "VOLDOWN_BTN", NULL);
         if (ret)
                 printk("ERROR: Cannot request IRQ %d\n - code %d\n", irq, ret);
 
