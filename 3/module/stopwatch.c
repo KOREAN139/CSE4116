@@ -26,17 +26,26 @@ static struct st_timer {
 
 struct st_timer watch_timer;
 
+/*
+ * update_fnd - update fnd status
+ * @fnd_val: 4 digits which will be displayed on fnd
+ */
 static void update_fnd(int fnd_val)
 {
         outw(fnd_val, (unsigned int)fnd_addr);
 }
 
+/*
+ * stopwatch_run - increase elapsed time & update fnd every second
+ * @param: address of timer (watch_timer)
+ */
 static void stopwatch_run(unsigned long param)
 {
         struct st_timer *t_data = (struct st_timer *)param;
         int i, elapsed;
         unsigned short int fnd_val = 0;
 
+        /* @elapsed: 4-digit, HHMM format */
         elapsed = t_data->param;
         for (i = 0; i < 4; i++) {
                 fnd_val |= (elapsed % 10) << (4 * i);
@@ -56,6 +65,10 @@ static void stopwatch_run(unsigned long param)
         add_timer(&watch_timer.timer);
 }
 
+/*
+ * stopwatch_write - sleeps user program using wait_queue
+ * @file, @buf, @len, @off: not used in this function
+ */
 static ssize_t stopwatch_write(struct file *file,
                 const char *buf, size_t len, loff_t *off)
 {
@@ -66,6 +79,11 @@ static ssize_t stopwatch_write(struct file *file,
         return SUCCESS;
 }
 
+/*
+ * home_handler - interrupt handler for HOME button
+ *                starts stopwatch if it's inactive
+ * @irq, @dev_id, @regs: not used in this function
+ */
 irqreturn_t home_handler(int irq, void *dev_id, struct ptr_regs *regs)
 {
         if (!timer_pending(&watch_timer.timer)) {
@@ -77,6 +95,12 @@ irqreturn_t home_handler(int irq, void *dev_id, struct ptr_regs *regs)
         return IRQ_HANDLED;
 }
 
+/*
+ * back_handler - interrupt handler for BACK button
+ *                pauses stopwatch if it's active
+ *                resumes if it's paused
+ * @irq, @dev_id, @regs: not used in this function
+ */
 irqreturn_t back_handler(int irq, void *dev_id, struct ptr_regs *regs)
 {
         if (timer_pending(&watch_timer.timer)) {
@@ -90,6 +114,11 @@ irqreturn_t back_handler(int irq, void *dev_id, struct ptr_regs *regs)
         return IRQ_HANDLED;
 }
 
+/*
+ * volume_up_handler - interrupt handler for VOL+ button
+ *                     resets stopwatch to initial state
+ * @irq, @dev_id, @regs: not used in this function
+ */
 irqreturn_t volume_up_handler(int irq, void *dev_id, struct ptr_regs *regs)
 {
         paused_at = 0;
@@ -102,11 +131,19 @@ irqreturn_t volume_up_handler(int irq, void *dev_id, struct ptr_regs *regs)
         return IRQ_HANDLED;
 }
 
+/*
+ * volume_down_handler - interrupt handler for VOL- button
+ * @irq, @dev_id, @regs: not used in this function
+ */
 irqreturn_t volume_down_handler(int irq, void *dev_id, struct ptr_regs *regs)
 {
         return IRQ_HANDLED;
 }
 
+/*
+ * stopwatch_open - register interrupts & opens module 
+ * @inode, @file: not used in this function
+ */
 static int stopwatch_open(struct inode *inode,
                 struct file *file)
 {
@@ -118,7 +155,6 @@ static int stopwatch_open(struct inode *inode,
 
         update_fnd(0);
 
-        /* change GPIO as input mode - home */
         gpio_direction_input(IMX_GPIO_NR(1, 11));
         irq = gpio_to_irq(IMX_GPIO_NR(1, 11));
         ret = request_irq(irq, home_handler,
@@ -126,7 +162,6 @@ static int stopwatch_open(struct inode *inode,
         if (ret)
                 printk("ERROR: Cannot request IRQ %d\n - code %d\n", irq, ret);
 
-        /* change GPIO as input mode - back */
         gpio_direction_input(IMX_GPIO_NR(1, 12));
         irq = gpio_to_irq(IMX_GPIO_NR(1, 12));
         ret = request_irq(irq, back_handler,
@@ -134,7 +169,6 @@ static int stopwatch_open(struct inode *inode,
         if (ret)
                 printk("ERROR: Cannot request IRQ %d\n - code %d\n", irq, ret);
 
-        /* change GPIO as input mode - volume up */
         gpio_direction_input(IMX_GPIO_NR(2, 15));
         irq = gpio_to_irq(IMX_GPIO_NR(2, 15));
         ret = request_irq(irq, volume_up_handler,
@@ -142,7 +176,6 @@ static int stopwatch_open(struct inode *inode,
         if (ret)
                 printk("ERROR: Cannot request IRQ %d\n - code %d\n", irq, ret);
 
-        /* change GPIO as input mode - volume down */
         gpio_direction_input(IMX_GPIO_NR(5, 14));
         irq = gpio_to_irq(IMX_GPIO_NR(5, 14));
         irq_flag |= IRQF_TRIGGER_FALLING;
@@ -157,6 +190,10 @@ static int stopwatch_open(struct inode *inode,
         return SUCCESS;
 }
 
+/*
+ * stopwatch_release - free registered interrupts & release module
+ * @inode, @file: not used in this function
+ */
 static int stopwatch_release(struct inode *inode,
                 struct file *file)
 {
@@ -177,6 +214,9 @@ struct file_operations fops = {
         .release = stopwatch_release,
 };
 
+/*
+ * init_module - register this device driver to kernel
+ */
 int init_module()
 {
         int ret;
@@ -192,6 +232,9 @@ int init_module()
         return 0;
 }
 
+/*
+ * cleanup_module - unregister this device driver from kernel
+ */
 void cleanup_module()
 {
         iounmap(fnd_addr);
