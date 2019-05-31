@@ -25,6 +25,18 @@ static struct st_timer {
 };
 
 struct st_timer watch_timer;
+struct st_timer term_timer;
+
+/*
+ * term_run - terminates stopwatch & wakes user program up
+ * @param: not used in this function
+ */
+static void term_run(unsigned long param)
+{
+        update_fnd(0);
+        del_timer(&watch_timer.timer);
+        __wake_up(&wait_queue);
+}
 
 /*
  * update_fnd - update fnd status
@@ -133,10 +145,26 @@ irqreturn_t volume_up_handler(int irq, void *dev_id, struct ptr_regs *regs)
 
 /*
  * volume_down_handler - interrupt handler for VOL- button
+ *                       add timer for termination when button is pressed
+ *                       delete timer if any when button is released
  * @irq, @dev_id, @regs: not used in this function
  */
 irqreturn_t volume_down_handler(int irq, void *dev_id, struct ptr_regs *regs)
 {
+        if (gpio_get_value(IMX_GPIO_NR(5, 14))) {
+                if (timer_pending(&term_timer.timer)) {
+                        mod_timer(&term_timer.timer,
+                                        get_jiffies_64() + 3 * HZ);
+                } else {
+                        term_timer.timer.function= term_run();
+                        term_timer.timer.expires = get_jiffies_64() + 3 * HZ;
+                        add_timer(&term_timer.timer);
+                }
+        } else {
+                if (timer_pending(&term_timer.timer))
+                        del_timer(&term_timer.timer);
+        }
+
         return IRQ_HANDLED;
 }
 
@@ -229,6 +257,7 @@ int init_module()
         }
         fnd_addr = ioremap(FND_ADDRESS, 0x4);
         init_timer(&watch_timer.timer);
+        init_timer(&term_timer.timer);
         return 0;
 }
 
