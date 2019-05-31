@@ -58,7 +58,7 @@ static void stopwatch_run(unsigned long param)
         int i, elapsed;
         unsigned short int fnd_val = 0;
 
-        /* @elapsed: 4-digit, HHMM format */
+        /* @elapsed: 4-digit, MMSS format */
         elapsed = t_data->param;
         for (i = 0; i < 4; i++) {
                 fnd_val |= (elapsed % 10) << (4 * i);
