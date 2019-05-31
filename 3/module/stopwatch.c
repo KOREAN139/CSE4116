@@ -28,17 +28,6 @@ struct st_timer watch_timer;
 struct st_timer term_timer;
 
 /*
- * term_run - terminates stopwatch & wakes user program up
- * @param: not used in this function
- */
-static void term_run(unsigned long param)
-{
-        update_fnd(0);
-        del_timer(&watch_timer.timer);
-        __wake_up(&wait_queue);
-}
-
-/*
  * update_fnd - update fnd status
  * @fnd_val: 4 digits which will be displayed on fnd
  */
@@ -46,6 +35,18 @@ static void update_fnd(int fnd_val)
 {
         outw(fnd_val, (unsigned int)fnd_addr);
 }
+
+/*
+ * term_run - terminates stopwatch & wakes user program up
+ * @param: not used in this function
+ */
+static void term_run(unsigned long param)
+{
+        update_fnd(0);
+        del_timer(&watch_timer.timer);
+        __wake_up(&wait_queue, 1, 1, NULL);
+}
+
 
 /*
  * stopwatch_run - increase elapsed time & update fnd every second
@@ -86,7 +87,7 @@ static ssize_t stopwatch_write(struct file *file,
 {
         paused_at = 0;
 
-        interruptible_sleep_on(wait_queue);
+        interruptible_sleep_on(&wait_queue);
 
         return SUCCESS;
 }
@@ -96,7 +97,7 @@ static ssize_t stopwatch_write(struct file *file,
  *                starts stopwatch if it's inactive
  * @irq, @dev_id, @regs: not used in this function
  */
-irqreturn_t home_handler(int irq, void *dev_id, struct ptr_regs *regs)
+irqreturn_t home_handler(int irq, void *dev_id, struct pt_regs *regs)
 {
         if (!timer_pending(&watch_timer.timer)) {
                 paused_at = 0;
@@ -113,13 +114,16 @@ irqreturn_t home_handler(int irq, void *dev_id, struct ptr_regs *regs)
  *                resumes if it's paused
  * @irq, @dev_id, @regs: not used in this function
  */
-irqreturn_t back_handler(int irq, void *dev_id, struct ptr_regs *regs)
+irqreturn_t back_handler(int irq, void *dev_id, struct pt_regs *regs)
 {
         if (timer_pending(&watch_timer.timer)) {
                 paused_at = watch_timer.timer.expires - get_jiffies_64();
                 del_timer(&watch_timer.timer);
         } else {
+		init_timer(&watch_timer.timer);
+		watch_timer.timer.function = stopwatch_run;
                 watch_timer.timer.expires = get_jiffies_64() + HZ - paused_at;
+		watch_timer.timer.data = (unsigned long)&watch_timer;
                 add_timer(&watch_timer.timer);
         }
 
@@ -131,10 +135,10 @@ irqreturn_t back_handler(int irq, void *dev_id, struct ptr_regs *regs)
  *                     resets stopwatch to initial state
  * @irq, @dev_id, @regs: not used in this function
  */
-irqreturn_t volume_up_handler(int irq, void *dev_id, struct ptr_regs *regs)
+irqreturn_t volume_up_handler(int irq, void *dev_id, struct pt_regs *regs)
 {
         paused_at = 0;
-        watch_timer.param = 0;
+        watch_timer.param = 1;
         update_fnd(0);
         if (timer_pending(&watch_timer.timer)) {
                 mod_timer(&watch_timer.timer, get_jiffies_64() + HZ);
@@ -149,14 +153,14 @@ irqreturn_t volume_up_handler(int irq, void *dev_id, struct ptr_regs *regs)
  *                       delete timer if any when button is released
  * @irq, @dev_id, @regs: not used in this function
  */
-irqreturn_t volume_down_handler(int irq, void *dev_id, struct ptr_regs *regs)
+irqreturn_t volume_down_handler(int irq, void *dev_id, struct pt_regs *regs)
 {
-        if (gpio_get_value(IMX_GPIO_NR(5, 14))) {
+        if (!gpio_get_value(IMX_GPIO_NR(5, 14))) {
                 if (timer_pending(&term_timer.timer)) {
                         mod_timer(&term_timer.timer,
                                         get_jiffies_64() + 3 * HZ);
                 } else {
-                        term_timer.timer.function= term_run();
+			term_timer.timer.function = term_run;
                         term_timer.timer.expires = get_jiffies_64() + 3 * HZ;
                         add_timer(&term_timer.timer);
                 }
@@ -175,13 +179,15 @@ irqreturn_t volume_down_handler(int irq, void *dev_id, struct ptr_regs *regs)
 static int stopwatch_open(struct inode *inode,
                 struct file *file)
 {
+        int irq, ret;
+	unsigned long irq_flag = IRQF_TRIGGER_RISING;
+
         if (device_open)
                 return -EBUSY;
 
-        int irq, ret;
-        unsigned int irq_flag = IRQF_TRIGGER_RISING;
-
         update_fnd(0);
+
+	init_waitqueue_head(&wait_queue);
 
         gpio_direction_input(IMX_GPIO_NR(1, 11));
         irq = gpio_to_irq(IMX_GPIO_NR(1, 11));
@@ -215,6 +221,7 @@ static int stopwatch_open(struct inode *inode,
         device_open++;
 
         try_module_get(THIS_MODULE);
+
         return SUCCESS;
 }
 
@@ -227,12 +234,13 @@ static int stopwatch_release(struct inode *inode,
 {
         device_open--;
 
-        free_irq(gpio_to_irq(IMX_GPIO_NR(1, 11), NULL);
-        free_irq(gpio_to_irq(IMX_GPIO_NR(1, 12), NULL);
-        free_irq(gpio_to_irq(IMX_GPIO_NR(2, 15), NULL);
-        free_irq(gpio_to_irq(IMX_GPIO_NR(5, 14), NULL);
+        free_irq(gpio_to_irq(IMX_GPIO_NR(1, 11)), NULL);
+        free_irq(gpio_to_irq(IMX_GPIO_NR(1, 12)), NULL);
+        free_irq(gpio_to_irq(IMX_GPIO_NR(2, 15)), NULL);
+        free_irq(gpio_to_irq(IMX_GPIO_NR(5, 14)), NULL);
 
         module_put(THIS_MODULE);
+
         return SUCCESS;
 }
 
@@ -258,6 +266,7 @@ int init_module()
         fnd_addr = ioremap(FND_ADDRESS, 0x4);
         init_timer(&watch_timer.timer);
         init_timer(&term_timer.timer);
+
         return 0;
 }
 
