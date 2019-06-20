@@ -3,11 +3,15 @@ package com.example.androidex;
 import android.app.Activity;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.SystemClock;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.TextView;
+
 import java.util.Random;
 
 public class MainActivity extends Activity implements Button.OnClickListener{
@@ -16,12 +20,15 @@ public class MainActivity extends Activity implements Button.OnClickListener{
 	EditText data;
 	Button btn;
 	OnClickListener ltn;
+	TextView timerTextView;
 	
 	int row, col, wid, hei;
 	int dx[] = {1, -1, 0, 0};
 	int dy[] = {0, 0, -1, 1};
 	int[] puzzleStats;
 	boolean flag;
+	
+	Thread timer;
 	
 	private void shuffleIntArray(int[] a) {
 		int len = a.length;
@@ -57,6 +64,7 @@ public class MainActivity extends Activity implements Button.OnClickListener{
 		
 		data=(EditText)findViewById(R.id.editText1);
 		Button btn=(Button)findViewById(R.id.button1);
+		timerTextView=(TextView)findViewById(R.id.textView1);
 		
 		flag = false;
 		
@@ -64,6 +72,8 @@ public class MainActivity extends Activity implements Button.OnClickListener{
 			public void onClick(View v){
 				if (flag) {
 					clearPuzzle();
+					flag = false;
+					timerTextView.setText("");
 				}
 				
 				String[] inputString=data.getText().toString().split("\\s");
@@ -97,8 +107,12 @@ public class MainActivity extends Activity implements Button.OnClickListener{
 				// shuffle
 				shuffleIntArray(puzzleStats);	
 				
+				SystemClock.sleep(100);
+				
 				drawPuzzle();
 				flag = true;
+				timer = new Thread(new PuzzleTimer());
+				timer.start();
 			}
 		};
 		btn.setOnClickListener(ltn);
@@ -169,7 +183,7 @@ public class MainActivity extends Activity implements Button.OnClickListener{
 	public void clearPuzzle() {
 		// clear all
 		for (int i = 0; i < row; i++) {
-			LinearLayout curr = (LinearLayout)linear.getChildAt(2);
+			LinearLayout curr = (LinearLayout)linear.getChildAt(3);
 			curr.removeAllViewsInLayout();
 			linear.removeView(curr);
 		}
@@ -180,5 +194,36 @@ public class MainActivity extends Activity implements Button.OnClickListener{
 			if (puzzleStats[i] != i+1)
 				return false;
 		return true;
+	}
+	
+	class PuzzleTimer implements Runnable {
+		private Handler handler = new Handler();
+		private int elapsed;
+		
+		@Override
+		public void run() {
+			elapsed = 0;
+			
+			while (flag) {
+				handler.post(new Runnable() {
+					@Override
+					public void run() {
+						// text edit
+						int min = elapsed / 10 / 60;
+						int sec = elapsed / 10 % 60;
+						int msec = elapsed % 10;
+						
+						timerTextView.setText(min+":"+sec+"."+msec);
+					}
+				});
+				
+				try {
+					elapsed += 1;
+					Thread.sleep(100);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+		}
 	}
 }
