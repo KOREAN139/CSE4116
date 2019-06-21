@@ -1,9 +1,14 @@
 package com.example.androidex;
 
 import android.app.Activity;
+import android.content.ComponentName;
+import android.content.Context;
+import android.content.Intent;
+import android.content.ServiceConnection;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.IBinder;
 import android.os.SystemClock;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -29,6 +34,23 @@ public class MainActivity extends Activity implements Button.OnClickListener{
 	boolean flag;
 	
 	Thread timer;
+	TimerService ms;
+	boolean isService = false;
+	
+	// service connection object
+	ServiceConnection conn = new ServiceConnection() {
+		@Override
+		public void onServiceConnected(ComponentName name, IBinder service) {
+			TimerService.TimerBinder mb = (TimerService.TimerBinder) service;
+			ms = mb.getService();
+			isService = true;
+		}
+		
+		@Override
+		public void onServiceDisconnected(ComponentName name) {
+			isService = false;
+		}
+	};
 	
 	private void shuffleIntArray(int[] a) {
 		int len = a.length;
@@ -74,6 +96,10 @@ public class MainActivity extends Activity implements Button.OnClickListener{
 					clearPuzzle();
 					flag = false;
 					timerTextView.setText("");
+					if(isService) {
+						unbindService(conn);
+						isService = false;
+					}
 				}
 				
 				String[] inputString=data.getText().toString().split("\\s");
@@ -111,7 +137,12 @@ public class MainActivity extends Activity implements Button.OnClickListener{
 				
 				drawPuzzle();
 				flag = true;
-				timer = new Thread(new PuzzleTimer());
+				Intent intent = new Intent(
+						MainActivity.this,
+						TimerService.class
+						);
+				bindService(intent, conn, Context.BIND_AUTO_CREATE);
+				Thread timer = new Thread(new PuzzleTimer());
 				timer.start();
 			}
 		};
@@ -148,6 +179,10 @@ public class MainActivity extends Activity implements Button.OnClickListener{
 		if (isSolved()) {
 			clearPuzzle();
 			flag = false;
+			if(isService) {
+				unbindService(conn);
+				isService = false;
+			}
 		}
 	}
 	
@@ -196,19 +231,19 @@ public class MainActivity extends Activity implements Button.OnClickListener{
 		return true;
 	}
 	
-	class PuzzleTimer implements Runnable {
+	private class PuzzleTimer implements Runnable {
 		private Handler handler = new Handler();
-		private int elapsed;
 		
 		@Override
 		public void run() {
-			elapsed = 0;
-			
 			while (flag) {
+				if (ms == null)
+					continue;
+				
 				handler.post(new Runnable() {
 					@Override
 					public void run() {
-						// text edit
+						int elapsed = ms.getElapsed();
 						int min = elapsed / 10 / 60;
 						int sec = elapsed / 10 % 60;
 						int msec = elapsed % 10;
@@ -218,7 +253,6 @@ public class MainActivity extends Activity implements Button.OnClickListener{
 				});
 				
 				try {
-					elapsed += 1;
 					Thread.sleep(100);
 				} catch (InterruptedException e) {
 					e.printStackTrace();
